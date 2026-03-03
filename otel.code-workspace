@@ -1,0 +1,33 @@
+{
+  "folders": [
+    {
+      "name": "otel-workspace",
+      "path": "../otel-workspace"
+    },
+    {
+      "name": "otel-core-example",
+      "path": "../otel-core-example"
+    },
+    {
+      "name": "otel-example-go",
+      "path": "../otel-example-go"
+    },
+    {
+      "name": "otel-example-nodejs",
+      "path": "../otel-example-nodejs"
+    },
+    {
+      "name": "otel-example-python",
+      "path": "../otel-example-python"
+    },
+    {
+      "name": "otel-example-java",
+      "path": "../otel-example-java"
+    },
+    {
+      "name": "otel-example-quarkus",
+      "path": "../otel-example-quarkus"
+    }
+  ],
+  "settings": {}
+}
