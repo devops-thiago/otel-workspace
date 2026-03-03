@@ -11,14 +11,24 @@ PR URL: **${input:pr_url}**
 
 ## Step 1 — Fetch comments and thread IDs
 
-Run both in parallel:
+Run all three in parallel:
 
 **a) Fetch the PR page** (human-readable comment bodies):
 ```
 fetch_webpage <pr_url>
 ```
 
-**b) Fetch review thread IDs via GitHub GraphQL** (needed to resolve threads in Step 8):
+**b) List all PR check statuses** — identify what is actually failing:
+```bash
+gh pr checks <pr_url> --json name,state,description
+```
+Note every check with `state: FAILURE`. These are actionable regardless of whether there is a review comment.
+Key checks to watch:
+- `SonarCloud Code Analysis` — quality gate failure
+- `codecov/patch` or `codecov/project` — coverage below threshold
+- `coverage/coveralls` — same
+
+**c) Fetch review thread IDs via GitHub GraphQL** (needed to resolve threads in Step 8):
 
 Extract `owner`, `repo`, `pr_number` from the URL, then:
 ```bash
@@ -60,11 +70,15 @@ For every comment decide: **apply** or **skip**.
 
 **Apply** if it identifies a real bug, security issue, or clear improvement.
 
+**Apply** failing CI checks as well as review comments:
+- `SonarCloud Code Analysis` failed → fix every new issue flagged (see Step 4b)
+- `codecov/patch` or `codecov/project` failed → add tests until threshold is met (see Step 4b)
+
 **Skip** (note reason, do not change code) if it is:
 - Editorial / PR description mismatch
 - Stylistic preference with no correctness impact
 - Already addressed in a prior commit on this branch
-- SonarCloud / Codecov coverage percentage commentary
+- Codecov bot comment reporting a minor drop when the check itself is still **passing**
 - Informational bot messages (github-advanced-security setup notice, etc.)
 
 ---
@@ -121,6 +135,46 @@ Use `multi_replace_string_in_file` to batch all changes in a single call.
 
 ---
 
+## Step 4b — Fix coverage gaps and SonarCloud issues
+
+Run **only if** Step 1b shows a failing coverage or SonarCloud check.
+
+### Coverage gaps
+
+Measure coverage and identify uncovered lines introduced by this PR:
+
+| Repo | Command |
+|------|---------|
+| Node.js | `npm run test:unit -- --coverage` |
+| Python | `poetry run pytest tests/unit/ --cov=app --cov-report=term-missing -v` |
+| Go | `go test ./... -coverprofile=coverage.out && go tool cover -func=coverage.out` |
+| .NET | `dotnet test UserApi.sln --collect:"XPlat Code Coverage"` |
+| Java / Quarkus | `make test` (JaCoCo report: `target/site/jacoco/index.html`) |
+
+Focus on **new public methods and handlers added in this PR**. Add unit tests until the
+threshold is met. Do not pad with trivial tests — cover meaningful execution paths
+(happy path + at least one error/edge case per handler).
+
+### SonarCloud quality gate
+
+1. Find the project key in `sonar-project.properties` at the repo root.
+2. Read the `sonarcloud[bot]` comment on the PR — it lists every new issue with file and line.
+3. Fix issues in priority order: **Bugs → Vulnerabilities → Security Hotspots → Code Smells**.
+4. Common patterns:
+
+| SonarCloud issue | Typical fix |
+|------------------|-------------|
+| Unhandled promise / missing `await` | Add `await` or `.catch()` |
+| Resource not closed (Java/Go) | `defer` / try-with-resources |
+| Hardcoded credential smell | Move to env var / config |
+| Cognitive complexity too high | Extract helper function |
+| Duplicate string literal | Extract constant |
+| Missing null/error check | Add guard clause |
+
+5. After fixing, re-run local tests to confirm nothing broke.
+
+---
+
 ## Step 5 — Run quality checks for the affected repo
 
 Run these in the repo directory **before committing**. Fix any failures before proceeding.
@@ -130,7 +184,7 @@ Run these in the repo directory **before committing**. Fix any failures before p
 npm run format
 npm run lint
 npm audit --audit-level=high
-npm run test:unit
+npm run test:unit -- --coverage
 ```
 
 ### Python
@@ -138,28 +192,31 @@ npm run test:unit
 poetry run ruff check --select I --fix app/ tests/
 poetry run black app/ tests/
 poetry run ruff check app/ tests/
-poetry run pytest tests/unit/ -v
+poetry run pytest tests/unit/ --cov=app --cov-report=term-missing -v
 ```
 
 ### Go
 ```bash
-make fmt && make vet && make lint && make test
+make fmt && make vet && make lint
+go test ./... -coverprofile=coverage.out && go tool cover -func=coverage.out
 ```
 
 ### .NET
 ```bash
 dotnet format UserApi.sln --verify-no-changes
-dotnet test UserApi.sln
+dotnet test UserApi.sln --collect:"XPlat Code Coverage"
 ```
 
 ### Java / Spring Boot
 ```bash
 make fmt-check && make test
+# JaCoCo report: target/site/jacoco/index.html
 ```
 
 ### Quarkus
 ```bash
 make fmt-check && make test
+# JaCoCo report: target/site/jacoco/index.html
 ```
 
 **If any check fails:** fix the issue, re-run that check, then continue.
@@ -227,19 +284,24 @@ gh api graphql -f query='
 ## Step 9 — Report
 
 ```
-## Applied (N comments)
+## Applied (N comments / failing checks)
 - [file:line] <brief description of fix>
 - ...
 
-## Skipped (N comments)
+## Skipped (N items)
 - <reason>
 - ...
 
 ## Quality checks
-- Format:  ✅ / ❌
-- Lint:    ✅ / ❌
-- Audit:   ✅ / ❌
-- Tests:   ✅ N passed / ❌ N failed
+- Format:   ✅ / ❌
+- Lint:     ✅ / ❌
+- Audit:    ✅ / ❌
+- Tests:    ✅ N passed / ❌ N failed
+- Coverage: ✅ N% (above threshold) / ❌ N% (below threshold)
+
+## CI gate status (after push)
+- SonarCloud:   ✅ passed / ❌ N issues remaining
+- Codecov:      ✅ passed / ❌ N% (threshold: N%)
 
 ## Threads resolved: N / total
 ```
