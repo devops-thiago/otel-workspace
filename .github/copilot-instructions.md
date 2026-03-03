@@ -17,6 +17,23 @@ data model, API surface, and test coverage.
 
 All repos share the same OTel observability stack: **Alloy → Mimir, Loki, Tempo → Grafana**.
 
+## Workspace Bootstrap
+
+All repos must live under `/Users/thiago/repos/`. If any are missing, clone them:
+
+```bash
+cd /Users/thiago/repos
+git clone https://github.com/devops-thiago/otel-core-example.git
+git clone https://github.com/devops-thiago/otel-example-go.git
+git clone https://github.com/devops-thiago/otel-example-nodejs.git
+git clone https://github.com/devops-thiago/otel-example-python.git
+git clone https://github.com/devops-thiago/otel-example-java.git
+git clone https://github.com/devops-thiago/otel-example-quarkus.git
+```
+
+To pull all repos to latest `main` (or clone missing ones), use the
+`.github/prompts/pull-all-repos.prompt.md` agent prompt.
+
 ---
 
 ## Canonical User Model
@@ -85,3 +102,33 @@ Health endpoints: `GET /health`, `GET /health/live`, `GET /health/ready`, `GET /
   - Use `pythonjsonlogger.json` (not `.jsonlogger`)
   - Use `status.HTTP_422_UNPROCESSABLE_CONTENT` (not `_ENTITY`)
 - **Python unit tests**: `tests/unit/conftest.py` provides an `autouse` fixture that overrides `get_db` with a `MagicMock` session so tests never require a real database
+
+---
+
+## Git Workflow Standards
+
+### Branch naming
+`<type>/<short-slug>` — e.g. `feat/user-bio-field`, `ci/add-format-lint-pr-checks`, `fix/mysql2-undefined-bind`
+
+### Commit messages — Conventional Commits
+```
+<type>[(<scope>)]: <imperative description>   ← max 72 chars, no period
+
+[body: what + why, 72-char wrap, bullets for multi-change commits]
+```
+Types: `feat` `fix` `ci` `docs` `chore` `refactor` `test` `perf` `deps`
+
+Rules:
+- Imperative mood ("add", not "adds" / "added")
+- Body explains **what** and **why**, not how
+- No `* Initial plan` artifacts from Copilot SWE agent
+- No YAML dependabot metadata in manually authored commits
+
+### PR descriptions
+Every repo has `.github/PULL_REQUEST_TEMPLATE.md` with four sections:
+1. **What** — one imperative sentence
+2. **Why** — motivation / linked issues
+3. **Changes** — one bullet per file/component changed, specific values
+4. **Test Plan + Checklist** — check every applicable box before requesting review
+
+Full details: see `.github/prompts/pr-and-commit-standards.prompt.md`

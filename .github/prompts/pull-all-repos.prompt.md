@@ -1,26 +1,50 @@
 ---
 mode: 'agent'
-description: 'Pull latest changes for all OTel repos to their main branch'
+description: 'Clone any missing OTel repos and pull latest main for all of them'
 ---
 
-Pull the latest changes for all repositories in this workspace.
+Ensure all OTel workspace repositories are present and up to date.
 
-For each of the following repos, in order:
-1. `/Users/thiago/repos/otel-core-example`
-2. `/Users/thiago/repos/otel-example-go`
-3. `/Users/thiago/repos/otel-example-nodejs`
-4. `/Users/thiago/repos/otel-example-python`
-5. `/Users/thiago/repos/otel-example-java`
-6. `/Users/thiago/repos/otel-example-quarkus`
+## Repo registry
 
-Run these steps for each repo:
+| Local path | GitHub URL |
+|------------|------------|
+| `/Users/thiago/repos/otel-core-example` | `https://github.com/devops-thiago/otel-core-example.git` |
+| `/Users/thiago/repos/otel-example-go` | `https://github.com/devops-thiago/otel-example-go.git` |
+| `/Users/thiago/repos/otel-example-nodejs` | `https://github.com/devops-thiago/otel-example-nodejs.git` |
+| `/Users/thiago/repos/otel-example-python` | `https://github.com/devops-thiago/otel-example-python.git` |
+| `/Users/thiago/repos/otel-example-java` | `https://github.com/devops-thiago/otel-example-java.git` |
+| `/Users/thiago/repos/otel-example-quarkus` | `https://github.com/devops-thiago/otel-example-quarkus.git` |
+
+## Step 1 — Clone any missing repos
+
+For each repo whose local path does **not** exist:
 ```bash
-cd <repo>
+git clone <github_url> <local_path>
+```
+
+## Step 2 — Pull latest main for all repos
+
+For each repo (whether just cloned or already present):
+```bash
+cd <local_path>
 git fetch origin
 git checkout main
 git pull origin main
 ```
 
-Report the result per repo (up to date / fast-forward / error). If any repo has
-uncommitted changes that would block the pull, report them and skip that repo
-without stashing or discarding changes.
+If a repo has uncommitted changes that would block the pull, report them and **skip
+that repo** without stashing or discarding changes.
+
+## Step 3 — Report
+
+```
+| Repo                  | Result                          |
+|-----------------------|---------------------------------|
+| otel-core-example     | cloned / up to date / updated / skipped (dirty) |
+| otel-example-go       | ...                             |
+| otel-example-nodejs   | ...                             |
+| otel-example-python   | ...                             |
+| otel-example-java     | ...                             |
+| otel-example-quarkus  | ...                             |
+```
